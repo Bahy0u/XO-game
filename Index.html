@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XO (Tic‑Tac‑Toe)</title>
+  <style>
+    :root {
+      --bg: #0f172a;          /* slate-900 */
+      --panel: #111827;       /* gray-900 */
+      --panel-2: #1f2937;     /* gray-800 */
+      --text: #e5e7eb;        /* gray-200 */
+      --muted: #9ca3af;       /* gray-400 */
+      --accent: #22c55e;      /* green-500 */
+      --accent-2: #60a5fa;    /* blue-400 */
+      --danger: #ef4444;      /* red-500 */
+      --shadow: 0 20px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100svh; display: grid; place-items: center;
+      background: radial-gradient(1200px 600px at 70% -10%, #1e293b 0%, #0b1222 40%, var(--bg) 70%);
+      color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    .app {
+      width: min(950px, 92vw);
+      display: grid; gap: 22px; padding: 28px; border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: var(--shadow);
+    }
+
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .title { font-size: clamp(20px, 4vw, 28px); font-weight: 700; letter-spacing: .4px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    button, .select {
+      background: var(--panel-2); color: var(--text); border: 1px solid rgba(255,255,255,.08);
+      padding: 10px 14px; border-radius: 12px; cursor: pointer; font-weight: 600; letter-spacing: .2px;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover, .select:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+    button:active { transform: translateY(0); }
+
+    .select { display: inline-flex; align-items: center; gap: 10px; user-select: none; }
+    .select input { accent-color: var(--accent); }
+
+    .panel {
+      background: var(--panel); border-radius: var(--radius); border: 1px solid rgba(255,255,255,.06);
+      padding: 16px; display: grid; gap: 16px;
+    }
+
+    .status { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .status .turn { font-weight: 700; letter-spacing: .3px; }
+    .badge { padding: 6px 10px; border-radius: 999px; font-size: 14px; background: #0b1222; border: 1px solid rgba(255,255,255,.06); color: var(--muted); }
+
+    .board {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cell {
+      position: relative; aspect-ratio: 1/1; display: grid; place-items: center;
+      background: #0b1222; border-radius: 14px; border: 1px solid rgba(255,255,255,.06);
+      font-size: clamp(34px, 7vw, 56px); font-weight: 800; color: var(--text);
+      cursor: pointer; user-select: none; transition: transform .08s ease, border-color .2s ease, background .2s ease;
+    }
+    .cell:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.18); }
+    .cell.winning { outline: 3px solid var(--accent); background: rgba(34,197,94,.12); }
+    .cell.disabled { cursor: default; opacity: .8; }
+
+    .score {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .score .card { background: #0b1222; border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 12px; text-align: center; }
+    .label { color: var(--muted); font-size: 12px; letter-spacing: .3px; text-transform: uppercase; }
+    .value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+
+    footer { display: flex; gap: 10px; justify-content: end; flex-wrap: wrap; }
+
+    .x { color: var(--accent-2); text-shadow: 0 6px 20px rgba(96,165,250,.35); }
+    .o { color: var(--accent); text-shadow: 0 6px 20px rgba(34,197,94,.35); }
+    .danger { color: var(--danger); }
+
+    @media (max-width: 520px) {
+      .status { flex-direction: column; align-items: start; }
+      .score { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" role="application" aria-label="Tic‑Tac‑Toe game">
+    <header>
+      <div class="title">XO • Tic‑Tac‑Toe</div>
+      <div class="controls">
+        <label class="select" title="Play against a computer (unbeatable)">
+          <input type="checkbox" id="aiToggle" />
+          vs Computer
+        </label>
+        <button id="newGameBtn" aria-label="Start a new game">New Game</button>
+        <button id="resetScoreBtn" aria-label="Reset the scoreboard">Reset Score</button>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="status">
+        <div class="turn" id="turnText">Turn: <span class="x">X</span></div>
+        <div class="badge" id="modeText">Mode: 2 Players</div>
+      </div>
+      <div class="board" id="board" aria-label="Game board" role="grid"></div>
+      <div id="message" class="badge" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <div class="label">Scoreboard</div>
+      <div class="score">
+        <div class="card"><div class="label">Player X</div><div class="value" id="scoreX">0</div></div>
+        <div class="card"><div class="label">Draws</div><div class="value" id="scoreD">0</div></div>
+        <div class="card"><div class="label">Player O</div><div class="value" id="scoreO">0</div></div>
+      </div>
+    </section>
+
+    <footer>
+      <small class="badge">Tip: Toggle “vs Computer” for an unbeatable AI opponent.</small>
+    </footer>
+  </main>
+
+  <script>
+    // --- Game State ---
+    const boardEl = document.getElementById('board');
+    const turnText = document.getElementById('turnText');
+    const messageEl = document.getElementById('message');
+    const modeText = document.getElementById('modeText');
+    const aiToggle = document.getElementById('aiToggle');
+    const newGameBtn = document.getElementById('newGameBtn');
+    const resetScoreBtn = document.getElementById('resetScoreBtn');
+
+    const scoreXEl = document.getElementById('scoreX');
+    const scoreOEl = document.getElementById('scoreO');
+    const scoreDEl = document.getElementById('scoreD');
+
+    let board, current, gameOver, vsAI;
+    let scores = { X: 0, O: 0, D: 0 };
+
+    const LINES = [
+      [0,1,2],[3,4,5],[6,7,8], // rows
+      [0,3,6],[1,4,7],[2,5,8], // cols
+      [0,4,8],[2,4,6]          // diags
+    ];
+
+    // --- Initialization ---
+    function init() {
+      boardEl.innerHTML = '';
+      board = Array(9).fill('');
+      current = 'X';
+      gameOver = false;
+      vsAI = aiToggle.checked;
+      modeText.textContent = vsAI ? 'Mode: vs Computer' : 'Mode: 2 Players';
+      messageEl.textContent = '';
+
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('button');
+        cell.className = 'cell';
+        cell.setAttribute('role','gridcell');
+        cell.setAttribute('aria-label', `Cell ${i+1}`);
+        cell.addEventListener('click', () => handleMove(i));
+        boardEl.appendChild(cell);
+      }
+      updateTurnUI();
+    }
+
+    function updateTurnUI() {
+      turnText.innerHTML = `Turn: <span class="${current === 'X' ? 'x' : 'o'}">${current}</span>`;
+    }
+
+    // --- Gameplay ---
+    function handleMove(i) {
+      if (gameOver || board[i]) return;
+      place(i, current);
+
+      const res = evaluate();
+      if (res) return finish(res);
+
+      current = current === 'X' ? 'O' : 'X';
+      updateTurnUI();
+
+      if (vsAI && current === 'O' && !gameOver) {
+        // Give a tiny delay for UX
+        setTimeout(() => {
+          const best = bestMove('O');
+          place(best, 'O');
+          const r2 = evaluate();
+          if (r2) return finish(r2);
+          current = 'X';
+          updateTurnUI();
+        }, 160);
+      }
+    }
+
+    function place(i, mark) {
+      board[i] = mark;
+      const cell = boardEl.children[i];
+      cell.textContent = mark;
+      cell.classList.add(mark === 'X' ? 'x' : 'o');
+      cell.classList.add('disabled');
+    }
+
+    function evaluate() {
+      // Check winner
+      for (const [a,b,c] of LINES) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          highlight([a,b,c]);
+          return board[a];
+        }
+      }
+      // Draw
+      if (board.every(Boolean)) return 'D';
+      return null;
+    }
+
+    function highlight(idxs) {
+      idxs.forEach(i => boardEl.children[i].classList.add('winning'));
+    }
+
+    function finish(result) {
+      gameOver = true;
+      if (result === 'D') {
+        messageEl.textContent = 'Draw! Nice match.';
+        scores.D++;
+      } else {
+        messageEl.innerHTML = `Winner: <span class="${result === 'X' ? 'x' : 'o'}">${result}</span>`;
+        scores[result]++;
+      }
+      renderScores();
+      // Disable remaining cells
+      [...boardEl.children].forEach((c, i) => { if (!board[i]) c.classList.add('disabled'); });
+    }
+
+    function renderScores() {
+      scoreXEl.textContent = scores.X;
+      scoreOEl.textContent = scores.O;
+      scoreDEl.textContent = scores.D;
+    }
+
+    // --- AI (Minimax, unbeatable) ---
+    function bestMove(aiMark) {
+      const human = aiMark === 'X' ? 'O' : 'X';
+
+      function mm(state, turn) {
+        const res = evalStatic(state);
+        if (res !== null) return res;
+
+        const moves = emptyCells(state);
+        if (turn === aiMark) {
+          // Maximize
+          let best = { score: -Infinity, idx: -1 };
+          for (const m of moves) {
+            state[m] = aiMark;
+            const s = mm(state, human).score;
+            state[m] = '';
+            if (s > best.score) best = { score: s, idx: m };
+          }
+          return best;
+        } else {
+          // Minimize
+          let best = { score: Infinity, idx: -1 };
+          for (const m of moves) {
+            state[m] = human;
+            const s = mm(state, aiMark).score;
+            state[m] = '';
+            if (s < best.score) best = { score: s, idx: m };
+          }
+          return best;
+        }
+      }
+
+      function evalStatic(state) {
+        for (const [a,b,c] of LINES) {
+          if (state[a] && state[a] === state[b] && state[a] === state[c]) {
+            return { score: state[a] === aiMark ? 10 : -10 };
+          }
+        }
+        if (state.every(Boolean)) return { score: 0 };
+        return null;
+      }
+
+      function emptyCells(state) {
+        const arr = [];
+        for (let i = 0; i < 9; i++) if (!state[i]) arr.push(i);
+        return arr;
+      }
+
+      return mm([...board], aiMark).idx;
+    }
+
+    // --- Events ---
+    aiToggle.addEventListener('change', init);
+    newGameBtn.addEventListener('click', init);
+    resetScoreBtn.addEventListener('click', () => {
+      scores = { X: 0, O: 0, D: 0 };
+      renderScores();
+      init();
+    });
+
+    // Start
+    init();
+  </script>
+</body>
+</html>
